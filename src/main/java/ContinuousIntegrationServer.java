@@ -12,17 +12,6 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 
 
-class GitDownload {
-
-
-    static void gitClone() {
-
-        new File("temp/repository");
-        System.out.println("REPO DOWNLOADED");
-    }
-}
-
-
 
 /**
  Skeleton of a ContinuousIntegrationServer which acts as webhook
@@ -39,6 +28,20 @@ public class ContinuousIntegrationServer extends AbstractHandler
             }
         }
         return directoryToBeDeleted.delete();
+    }
+
+    void downloadRepo() throws IOException {
+        deleteDirectory(new File("temp/repository"));
+
+        ProcessBuilder processBuilder = new ProcessBuilder();
+        processBuilder.command(
+                new String[]{"git", "clone", "-b", "testing", "https://github.com/group19-se24/assignment-2.git", "temp/repository"});
+        Process process = processBuilder.start();
+        try {
+            process.waitFor();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void handle(String target,
@@ -76,29 +79,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
         System.out.println("Payload: " + payload.toString());
 
 
-        deleteDirectory(new File("temp/repository"));
-
-        ProcessBuilder processBuilder = new ProcessBuilder();
-        processBuilder.command(
-                new String[]{"git", "clone", "https://github.com/group19-se24/assignment-2.git", "temp/repository"});
-        Process process = processBuilder.start();
-        try {
-            process.waitFor();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-
-
-
-
-
-
-
-
-
-
-
-
+        downloadRepo();
 
 
         System.out.println();
