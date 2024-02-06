@@ -11,6 +11,24 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 
+class ResultFromCompiling {
+    private final int statusCode;
+    private final String outp;
+
+    public ResultFromCompiling(int statusCode, String output) {
+        this.statusCode = statusCode;
+        this.outp = output;
+    }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public String getOutp() {
+        return outp;
+    }
+}
+
 /**
  Skeleton of a ContinuousIntegrationServer which acts as webhook
  See the Jetty documentation for API documentation of those classes.
@@ -32,8 +50,9 @@ public class ContinuousIntegrationServer extends AbstractHandler
          * locally compile using Maven #4
          * */
         if ("/compile".equals(target)) {
-            String compileResult = compileProjectWithMaven("/Users/admin/Documents/assignment-2"); //How to fix global path?
-            response.getWriter().println(compileResult);
+            ResultFromCompiling result = compileProjectWithMaven("/Users/admin/Documents/assignment-2"); // Adjust the path as needed
+            String compilationMessageForDebug = result.getStatusCode() == 0 ? "Compiled succefully:\n" : "Compilation was failed:\n";
+            response.getWriter().println(compilationMessageForDebug + result.getOutp());
         }
 
 
@@ -47,37 +66,32 @@ public class ContinuousIntegrationServer extends AbstractHandler
         response.getWriter().println("CI job done");
     }
 
-    private String compileProjectWithMaven(String pathOfProject) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder();
-            pb.command("mvn", "-f", pathOfProject, "clean", "install");  //could be verify or package instead of install but install might be most robust
+    private ResultFromCompiling compileProjectWithMaven(String pathOfProject) {
+        StringBuilder out = new StringBuilder();
+        int statusCode = -1;
 
+        try {
+            ProcessBuilder pb = new ProcessBuilder("mvn", "-f", pathOfProject, "clean", "install");
             pb.directory(new File(pathOfProject));
             Process p = pb.start();
 
-            StringBuilder out = new StringBuilder();
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
             String line;
-
             while ((line = br.readLine()) != null) {
                 out.append(line).append("\n");
             }
 
-            if (p.waitFor() == 0) {
-                return "Succesfull compile:\n" + out.toString();
-            } else {
-                return "Failed compile:\n" + out.toString();
-            }
 
-
+            statusCode = p.waitFor();
         } catch (IOException e) {
             e.printStackTrace();
-            return "IOException " + e.getMessage();
-        }
-        catch (InterruptedException e) {
+            out.append("IOException: ").append(e.getMessage());
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return "InterruptedException " + e.getMessage();
+            out.append("InterruptedException: ").append(e.getMessage());
         }
+
+        return new ResultFromCompiling(statusCode, out.toString());
 
     }
 
